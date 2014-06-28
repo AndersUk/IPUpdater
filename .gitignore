@@ -1,4 +1,6 @@
 
-checkip.db
+*.log
 
-curllines.txt
+lastIP.db
+
+ipUpdaterLines.txt
