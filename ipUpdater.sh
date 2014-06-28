@@ -1,9 +1,32 @@
 #!/bin/bash
 
-CONFIGDIR="."
-DB="$CONFIGDIR/checkip.db"
-CURLLINES="$CONFIGDIR/curllines.txt"
+### ipUpdater.sh 
+###
+### Small script that checks the current external IP address against a local 
+### cached copy. If different, it goes through each line in a second file
+### using them as paramters for CURL. Hopefully this will update whatever
+### online service you're using, such as OpenDNS, ClouDNS, etc etc
+###
+### For example OpenDNS: 
+### https://updates.opendns.com/nic/update?hostname=[networkName] --basic --user [email]:[password] 
+###
+### Code for this has been lifted from various places on the web, so do
+### do feel free to use/change/whatever 
+### 
+### Don't forget to change the permissions on the UPDATELINES files so 
+### no one can snoop passwords, emails etc
+###
 
+
+### Script Settings ----------------------------------------------------------- 
+CONFIGDIR="."
+DB="$CONFIGDIR/lastIP.db"
+UPDATELINES="$CONFIGDIR/ipUpdaterLines.txt"
+LOGFILE="$CONFIGDIR/ipUpdater.log"
+KEEPLOG="" ### Put something here to keep a log history
+
+
+### Preflight Checks ----------------------------------------------------------
 command -v dig >/dev/null 2>&1 || {
 echo -e "I require dig but it's not installed. Aborting." >&2
 exit 1; }
@@ -13,17 +36,39 @@ echo -e "I require curl but it's not installed. Aborting." >&2
 exit 1; }
 
 
+### Main code -----------------------------------------------------------------
+logStart() {
+	if [[ $KEEPLOG = "" ]]; then
+		# Reset the log file
+		echo $NOW > $LOGFILE
+	else			
+		echo -e "\n" >> $LOGFILE 
+		echo $NOW >> $LOGFILE
+	fi
+			
+	# Only allow the user to view log file as it could have key details in it
+	chmod u=rw,go= $LOGFILE 
+	
+	# Do the same for the 
+	chmod u=rw,go= $UPDATELINES 
+}
+log() {
+	echo -e "$1" >> $LOGFILE
+}
+
+
 run() {
 	NOW=$(date "+%m-%d-%Y %H:%M:%S")
 
+	logStart
 
-	if [[ ! -f "$CURLLINES" ]]; then
-		echo -e " No CURL file found: $CURLLINES - nothing to do then..."
+	if [[ ! -s "$UPDATELINES" ]]; then
+		log "No CURL lines found: $UPDATELINES - nothing to do then..."
 		exit 1
 	fi
 	
-	if [[ ! -f "$DB" ]]; then
-		echo -e " No old IP on record so writing dummy values to database."
+	if [[ ! -s "$DB" ]]; then
+		log "No old IP on record so writing dummy values to database."
 		echo '1.1.1.1.' > "$DB"
 	fi
 	
@@ -52,28 +97,31 @@ run() {
 
 	if [[ -z "$CURRENTIP" ]]; then
 		# net up or down
-		echo -e " WAN or websites are down, no action taken."
+		log "WAN or websites are down, no action taken."
 		exit 1
 	fi 
 
 	if [[ "$CURRENTIP" != "$OLDIP" ]]; then
 		# IP changed
-		echo -e " Current IP differs from IP in database so notifying and updating database."
+		log "Current IP differs from IP in database so notifying and updating database."
 		triggerUpdate
 	else
 		# no change
-		echo -e " IP matches IP on record so taking no action."
+		log "IP matches IP on record so taking no action."
 	fi
 }
 
 triggerUpdate() {
+	# Update the local cache
 	echo "$CURRENTIP" > "$DB"	
 	
-	grep -v '^#' $CURLLINES | while read -r file ; do
-	    if [ -n "$file" ]; then
-			echo -e "$file"
-	    	curl -s $file
-			echo -e "\n"
+	# Go through secondary file, excluding comments
+	grep -v '^#' $UPDATELINES | while read -r lline ; do
+	    if [ -n "$lline" ]; then
+			log $lline
+	    	result=$(curl -s $lline)
+			log $result
+			log ""
 		fi
 	done
 }
