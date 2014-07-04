@@ -27,11 +27,11 @@ LASTRUN="$CONFIGDIR/ipUpdaterLastRun.log"
 
 ### Preflight Checks ----------------------------------------------------------
 command -v dig >/dev/null 2>&1 || {
-echo -e "I require dig but it's not installed. Aborting." >&2
+lastLog "I require dig but it's not installed. Aborting."
 exit 1; }
 
 command -v curl >/dev/null 2>&1 || {
-echo -e "I require curl but it's not installed. Aborting." >&2
+lastLog "I require curl but it's not installed. Aborting."
 exit 1; }
 
 
