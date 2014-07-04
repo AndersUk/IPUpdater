@@ -23,8 +23,7 @@ CONFIGDIR="."
 DB="$CONFIGDIR/lastIP.db"
 UPDATELINES="$CONFIGDIR/ipUpdaterLines.txt"
 LOGFILE="$CONFIGDIR/ipUpdater.log"
-KEEPLOG="" ### Put something here to keep a log history
-
+LASTRUN="$CONFIGDIR/ipUpdaterLastRun.log"
 
 ### Preflight Checks ----------------------------------------------------------
 command -v dig >/dev/null 2>&1 || {
@@ -37,44 +36,34 @@ exit 1; }
 
 
 ### Main code -----------------------------------------------------------------
-logStart() {
-	if [[ $KEEPLOG = "" ]]; then
-		# Reset the log file
-		echo $NOW > $LOGFILE
-	else			
-		echo -e "\n" >> $LOGFILE 
-		echo $NOW >> $LOGFILE
-	fi
-			
-	# Only allow the user to view log file as it could have key details in it
-	chmod u=rw,go= $LOGFILE 
-	
-	# Do the same for the 
-	chmod u=rw,go= $UPDATELINES 
-}
 log() {
 	echo -e "$1" >> $LOGFILE
 }
 
+lastLog() {
+	echo -e "$1" >> $LASTRUN
+}
 
 run() {
-	NOW=$(date "+%m-%d-%Y %H:%M:%S")
-
-	logStart
+	NOW=$(date "+%d-%m-%Y %H:%M:%S")
+	
+	# Reset the last run log file
+	echo $NOW > $LASTRUN
 
 	if [[ ! -s "$UPDATELINES" ]]; then
-		log "No CURL lines found: $UPDATELINES - nothing to do then..."
+		lastLog "No CURL lines found: $UPDATELINES - nothing to do then..."
 		exit 1
 	fi
 	
 	if [[ ! -s "$DB" ]]; then
-		log "No old IP on record so writing dummy values to database."
+		lastLog "No old IP on record so writing dummy values to database."
 		echo '1.1.1.1.' > "$DB"
 	fi
 	
+	# Get the last stored IP adddress
 	OLDIP=$(cat "$DB")
 		
-	# Get the IP address
+	# Get the IP address from the internet
 	# Script tries initially from a DNS server using dig
 	CURRENTIP=$(dig +short myip.opendns.com @resolver1.opendns.com)
 
@@ -97,17 +86,17 @@ run() {
 
 	if [[ -z "$CURRENTIP" ]]; then
 		# net up or down
-		log "WAN or websites are down, no action taken."
+		lastLog "WAN or websites are down, no action taken."
 		exit 1
 	fi 
 
 	if [[ "$CURRENTIP" != "$OLDIP" ]]; then
 		# IP changed
-		log "Current IP differs from IP in database so notifying and updating database."
+		lastLog "Current IP differs from IP in database so notifying and updating database."
 		triggerUpdate
 	else
 		# no change
-		log "IP matches IP on record so taking no action."
+		lastLog "IP matches IP on record so taking no action."
 	fi
 }
 
@@ -115,9 +104,18 @@ triggerUpdate() {
 	# Update the local cache
 	echo "$CURRENTIP" > "$DB"	
 	
+	# Reset the log file
+	echo $NOW > $LOGFILE
+			
+	# Only allow the user to view log file as it could have key details in it
+	chmod u=rw,go= $LOGFILE 
+	
+	# Do the same for the 
+	chmod u=rw,go= $UPDATELINES 
+	
 	# Go through secondary file, excluding comments
 	grep -v '^#' $UPDATELINES | while read -r lline ; do
-	    if [ -n "$lline" ]; then
+	    if [[ -n "$lline" ]]; then
 			log $lline
 	    	result=$(curl -s $lline)
 			log $result
