@@ -19,7 +19,7 @@
 
 
 ### Script Settings ----------------------------------------------------------- 
-CONFIGDIR="."
+CONFIGDIR="/usr/local/src/IPUpdater"
 DB="$CONFIGDIR/lastIP.db"
 UPDATELINES="$CONFIGDIR/ipUpdaterLines.txt"
 LOGFILE="$CONFIGDIR/ipUpdater.log"
@@ -27,11 +27,11 @@ LASTRUN="$CONFIGDIR/ipUpdaterLastRun.log"
 
 ### Preflight Checks ----------------------------------------------------------
 command -v dig >/dev/null 2>&1 || {
-lastLog "I require dig but it's not installed. Aborting."
+echo -e "I require dig but it's not installed. Aborting." > $LASTRUN
 exit 1; }
 
 command -v curl >/dev/null 2>&1 || {
-lastLog "I require curl but it's not installed. Aborting."
+echo -e "I require curl but it's not installed. Aborting." > $LASTRUN
 exit 1; }
 
 
