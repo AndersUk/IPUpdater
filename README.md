@@ -8,4 +8,14 @@ For example OpenDNS:
 
 Code for this has been lifted from various places on the web, so do feel free to use/change/whatever 
 
-Don't forget to change the permissions on the UPDATELINES files so no one can snoop passwords, emails etc
+### Dependency ###
+Script needs **curl** and **dig** to be installed on executing system.
+
+## Usage ##
+I run this script every five minutes, that way any change to external IP address is picked up very quickly.
+
+    ./ipUpdater.sh    
+
+**CRON Task** to run every 5 minutes:
+
+    */5 * * * * /usr/local/src/IPUpdater/ipUpdater.sh > /dev/null 2>&1
